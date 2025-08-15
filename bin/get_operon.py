@@ -4,7 +4,7 @@ import glob
 from cluster_pos import cluster_pos
 
 # grab checked ars
-ars = pd.read_csv('../results/ars_rescheck_nofilt_07212025.csv')
+ars = pd.read_csv('../results/ars_final_08042025.csv')
 
 #multi-index to cluster by genome, contig
 ars.reset_index(inplace = True)
@@ -18,8 +18,8 @@ for genome in ars.index.get_level_values(0).unique(): # iterate through each gen
 
         tmp = ars.loc[(genome, contig)]
 
-        # get clusters
-        pos_clusters = cluster_pos(tmp.Hit.unique(), 40)
+        # get clusterssbatch
+        pos_clusters = cluster_pos(tmp.Hit.unique())
         
         # get positions within +/-12 genes of center 
         for cl in pos_clusters:
@@ -28,14 +28,11 @@ for genome in ars.index.get_level_values(0).unique(): # iterate through each gen
             acc = [contig + '_' + str(p) for p in pos] # get acc
 
             # write list items into a .txt file
-            os.system("rm seqs.txt")
             with open("seqs.txt", "w") as f:
                 for item in acc:
                     f.write(f"{item}\n")
 
             # save subsets as fasta
-            try:
-                file = glob.glob(f"../../GTDB/all_rep_proteins_aa/*/{genome[0]}_protein.faa")[0]
-                os.system(f"seqtk subseq {file} seqs.txt > ../operon_org/{genome}_{contig}_operon.fasta")
-            except:
-                continue
+            file = glob.glob(f"../../GTDB/all_rep_proteins_aa/*/{genome[0]}_protein.faa")[0]
+            os.system(f"seqtk subseq {file} seqs.txt > ../operon_org/{genome}_{contig}_operon.fasta")
+            os.system("rm seqs.txt")

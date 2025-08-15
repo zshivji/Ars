@@ -88,7 +88,7 @@ passing_score = 9
 # initialize dataframe
 arsA_checked = check_gene('../results/fasta_splits/arsA_split.00001', ref_seq_arsA, important_residues_arsA, passing_score, p=True)
 
-for file in glob.glob(f'../results/fasta_splits/arsA_split.000*.aln'):
+for file in glob.glob(f'../results/fasta_splits/arsA_split.00*.aln'):
     if file == '../results/fasta_splits/arsA_split.00001.aln':
         continue
     new = check_gene(file[:-4], ref_seq_arsA, important_residues_arsA, passing_score)
@@ -102,9 +102,9 @@ print(str(len(arsA_checked)) + " arsA seqs")
 # append updated annotation (based on conserved residue matching) to ars files
 
 # grab both archaea + bacteria hits
-arsA_archaea = pd.read_feather('../results/archaea/arsA.feather')
-arsA_bacteria = pd.read_feather('../results/bacteria/arsA.feather')
-ars = pd.concat([arsA_archaea, arsA_bacteria])
+ars_archaea = pd.read_feather('../results/archaea/tophits.feather')
+ars_bacteria = pd.read_feather('../results/bacteria/tophits.feather')
+ars = pd.concat([ars_archaea, ars_bacteria])
 
 ars.reset_index(inplace = True)
 ars.set_index(['GenomeID', 'Hit'], inplace = True)
@@ -115,19 +115,77 @@ ars['backup_match'] = ''
 ars.sort_index(inplace = True)
 
 # update residue match column in ars df
-for gene in 'A':
-    for genome, cols in eval(f"ars{gene}_checked.iterrows()"):
-        ars.loc[(genome[0], genome[1]), 'residue_match'] = "ars" + gene
+for genome, cols in eval(f"arsA_checked.iterrows()"):
+    ars.loc[(genome[0], genome[1]), 'residue_match'] = "arsA"
 
 # filter to get hits that passed residue matching
 ars.reset_index(level = 'Hit', inplace = True)
 ars.set_index('contig', append=True, inplace = True)
 
 arsA = ars[(ars.residue_match == 'arsA') & (ars.Gene == 'arsA') & (ars['Alignment Length'] > 400)]
-arsB = ars.loc[arsA.index]
-arsB = arsB[arsB.Gene == 'arsB'] # only keep arsB hits with true arsA
+ars = ars[ars.Gene != 'arsA'] # remove all arsA hits
 
-ars = pd.concat([arsA, arsB])
+ars = pd.concat([arsA, ars]) # add checked arsA hits back
 ars.sort_index(inplace = True)
 
-ars.to_csv('../results/ars_rescheck_nofilt_07212025.csv', index = False)
+ars.to_csv('../results/ars_rescheck_nofilt_08042025.csv', index = True)
+
+from cluster_pos import cluster_pos
+
+# make sure gene clusters have at least arsRBC
+def gene_check(genes):
+    if genes.__contains__('arsR'):
+        if genes.__contains__('arsB'):
+            if genes.__contains__('arsC'):
+                return True
+
+## multi-index to cluster by genome, contig
+ars = pd.read_csv('../results/ars_rescheck_nofilt_08042025.csv', index_col=['GenomeID', 'contig'])
+# drop duplicate hits, but keep most sig e-value
+ars.sort_values(by=['E-value'], inplace=True)
+ars.drop_duplicates(inplace = True, subset=['Hit'], keep='first')
+ars.sort_index(inplace = True) # improve performance
+
+# filter for genome, contig with at least 3 unique genes (arsRBC)
+filtered_ars = ars.groupby(level=['GenomeID', 'contig']).filter(lambda x: x['Gene'].nunique() >= 3)
+
+genomes_to_keep = []
+# iterate through each genome and contig
+for genome in filtered_ars.index.get_level_values(0).unique(): # iterate through each genome
+    for contig in filtered_ars.loc[genome].index.get_level_values(0).unique(): # iterate through each contig
+
+        tmp = filtered_ars.loc[(genome, contig)]
+
+        # only keep numbers that have clusters >= 3
+        pos_clusters = cluster_pos(tmp.Hit.unique(), 10)
+
+        # save clusters that have at least arsRBC
+        for ind, cl in enumerate(pos_clusters):
+            pos = [contig + '_' + str(p) for p in cl]
+            no_pos = len(pos)
+            
+            # need at least 3 genes to continue
+            if no_pos < 3:
+                continue
+
+            # only keep hits that are in the cluster
+            tmp2 = tmp[tmp.Hit.isin(pos)].reset_index()
+
+            # check if all genes are present
+            if gene_check(tmp2.Gene.to_list()):
+                # get index
+                items = [(genome, contig, hit) for hit in tmp2.Hit]
+                genomes_to_keep.extend(items)
+
+# filter for genomes to keep
+filtered_ars.set_index(['Hit'], append = True, inplace = True)
+filtered_ars = filtered_ars.loc[genomes_to_keep]
+filtered_ars.sort_index(inplace = True)
+
+#clean up cols
+filtered_ars = filtered_ars[['Gene', 'E-value', 'Bit Score', 'Location', 'Alignment Length', 'Sequence Length', 'GTDB']]
+filtered_ars.drop_duplicates(inplace = True)
+
+# export 
+filtered_ars.to_feather('../results/ars_final_08042025.feather')
+filtered_ars.to_csv('../results/ars_final_08042025.csv')
