@@ -183,7 +183,7 @@ filtered_ars = filtered_ars.loc[genomes_to_keep]
 filtered_ars.sort_index(inplace = True)
 
 #clean up cols
-filtered_ars = filtered_ars[['Gene', 'E-value', 'Bit Score', 'Location', 'Alignment Length', 'Sequence Length', 'GTDB']]
+filtered_ars = filtered_ars[['Gene', 'E-value', 'Bit Score', 'Location', 'Orientation', 'Alignment Length', 'Sequence Length', 'GTDB']]
 filtered_ars.drop_duplicates(inplace = True)
 
 # export 

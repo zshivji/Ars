@@ -8,7 +8,7 @@ from pygenomeviz import GenomeViz
 import sys
 
 # organize microbeannotator results
-arsAB = pd.read_csv('../results/ars_rescheck_nofilt_07212025.csv', index_col=[0,1])
+arsAB = pd.read_csv('../results/ars_WW_final_08132025.csv', index_col=[0,1])
 
 gene_abv = {'K00532': 'hydA', 'K07486':'tns', 'K07485':'tns', 'K07487':'tns', 'K13819': 'arsU'} # store ko2gene
 gene_data = pd.DataFrame(columns = ['genome', 'contig', 'query_id', 'gene', 'ko_number', 'start', 'end', 'orientation'])
@@ -53,7 +53,7 @@ for file in glob.glob(f"../operon-org/microbeannotator/annotation_results/*.anno
         annot.loc[row[1].Hit, 'gene'] = row[1].Gene
         annot.loc[row[1].Hit, 'start'] = int(row[1].Location.split('-')[0])
         annot.loc[row[1].Hit, 'end'] = int(row[1].Location.split('-')[1])
-        annot.loc[row[1].Hit, 'orientation'] = 1 # BUG: CANNOT KNOW ORIENTATION
+        annot.loc[row[1].Hit, 'orientation'] = row[1].Orientation
 
     # set genome and contig
     annot['genome'] = genome

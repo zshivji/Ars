@@ -30,6 +30,7 @@ best_domain_evalue = []
 bitscore = []
 bias = []
 location = []
+orientation = []
 alens = []
 slength = []
 flag1 = []
@@ -43,8 +44,9 @@ def append_hit(genomeID, gene, item):
     best_domain_evalue.append(item.hsps[0].evalue)
     bitscore.append(item.bitscore)
     bias.append(item.bias)
-    s = r'# ([0-9]+) # ([0-9]+)'
+    s = r'# ([0-9]+) # ([0-9]+) # (-?\d)'
     location.append(re.match(s, item.description).group(1) + "-" + re.match(s, item.description).group(2))
+    orientation.append(item.description.split('# ')[3])  # default orientation if not specified
     # grab full alignment length (need to sum all domains)
     alen = 0
     for domain in item.hsps:
@@ -94,7 +96,7 @@ for file in glob.glob(f'../results/{dir}/hmmsearch_results/*.out'):
 # create and store dataframe
 hits = pd.DataFrame({'GenomeID': result_target, 'Gene': query_id, 'Hit': hit_id, 
                      'E-value': evalue, 'Best Domain E-value': best_domain_evalue, 'Bit Score': bitscore, 'Bias': bias,
-                     'Location': location, 'Alignment Length': alens, 'Sequence Length': slength, 
+                     'Location': location, 'Orientation': orientation, 'Alignment Length': alens, 'Sequence Length': slength, 
                      'Flag_Eval': flag1, 'Flag_Bias': flag2})
 
 # add taxonomy info
