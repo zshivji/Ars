@@ -10,30 +10,33 @@ import sys
 # organize microbeannotator results
 arsAB = pd.read_csv('../results/ars_WW_final_08132025.csv', index_col=[0,1])
 
-gene_abv = {'K00532': 'hydA', 'K07486':'tns', 'K07485':'tns', 'K07487':'tns', 'K13819': 'arsU'} # store ko2gene
+gene_abv = {'K03892': 'arsR', 'K03893':'arsB', 'K01551':'arsA', 'K07487':'tns'} # store ko2gene
 gene_data = pd.DataFrame(columns = ['genome', 'contig', 'query_id', 'gene', 'ko_number', 'start', 'end', 'orientation'])
-#gene_data.set_index(['query_id'], inplace = True)
 
 def ko2gene(ko):
     try:
         return gene_abv[ko]
     except:
-        url = f"https://rest.kegg.jp/get/ko:{ko}"
-        r = requests.get(url)
-        for line in r.text.split("\n"):
-            if line.startswith("SYMBOL"):
-                gene = line.split()[-1]
-                gene_abv[ko] = gene
-                return gene
+        if ko.startswith('K'):
+            url = f"https://rest.kegg.jp/get/ko:{ko}"
+            r = requests.get(url)
+            for line in r.text.split("\n"):
+                if line.startswith("SYMBOL"):
+                    gene = line.split()[-1]
+                    gene_abv[ko] = gene
+                    return gene
+        else:
+            return ko
 
 # grab annotation files
 for file in glob.glob(f"../operon-org/microbeannotator/annotation_results/*.annot"):
     # convet ko_number to gene abv
     annot = pd.read_csv(file, sep = '\t', index_col=0)
+    annot['ko_number'].fillna(annot['protein_id'], inplace=True) 
     annot['gene'] = annot['ko_number'].apply(ko2gene)
 
     # grab genome and contig from file name
-    s = r'([A-Z_]+[A-Z0-9.]+)_([A-Z_]*[A-Z0-9.]+)'
+    s = r'([ABCDEFGH]\d_UCSD-ww_scaffolds)_(NODE_\S+)_operon'
     genome = re.search(s, file).group(1)
     contig = re.search(s, file).group(2)
 
@@ -61,6 +64,7 @@ for file in glob.glob(f"../operon-org/microbeannotator/annotation_results/*.anno
 
     annot.reset_index(inplace = True)
     gene_data = pd.concat([gene_data, annot[['genome', 'contig', 'query_id', 'gene', 'ko_number', 'start', 'end', 'orientation']]])
+
 gene_data.to_csv('../operon-org/operon-org-plot-data.csv')
 
 # plot
